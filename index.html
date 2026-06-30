@@ -8,13 +8,13 @@
   * { box-sizing: border-box; }
   body {
     font-family: 'Sarabun', 'Segoe UI', sans-serif;
-    background: #f4f6f8;
+    background: #3f3f3f;
     margin: 0;
     padding: 20px;
-    color: #1f2937;
+    color: #ececec;
   }
   .container { max-width: 1000px; margin: 0 auto; }
-  h1 { font-size: 22px; margin-bottom: 16px; }
+  h1 { font-size: 22px; margin-bottom: 16px; color: #f5c518; font-weight: 600; }
 
   .toolbar {
     display: flex;
@@ -25,42 +25,49 @@
   input, select, button {
     padding: 8px 12px;
     border-radius: 6px;
-    border: 1px solid #d1d5db;
+    border: 1px solid #6b6b6b;
     font-size: 14px;
+    background: #565656;
+    color: #ececec;
   }
+  input::placeholder { color: #b0b0b0; }
+  input:focus, select:focus { outline: none; border-color: #f5c518; }
   #searchBox { flex: 1; min-width: 200px; }
   button {
-    background: #2563eb;
-    color: white;
-    border: none;
+    background: #f5c518;
+    color: #2b2b2b;
+    border: 1px solid #d8ab0c;
     cursor: pointer;
+    font-weight: 600;
   }
-  button:hover { background: #1d4ed8; }
-  button.secondary { background: #6b7280; }
-  button.secondary:hover { background: #4b5563; }
-  button.danger { background: #dc2626; }
-  button.danger:hover { background: #b91c1c; }
+  button:hover { background: #ffd633; }
+  button.secondary { background: #6b6b6b; border-color: #7c7c7c; color: #f0f0f0; }
+  button.secondary:hover { background: #7c7c7c; }
+  button.danger { background: #8a4a4a; border-color: #a05858; color: #ffe2e2; }
+  button.danger:hover { background: #9c5454; }
 
   table {
     width: 100%;
     border-collapse: collapse;
-    background: white;
+    background: #4a4a4a;
     border-radius: 8px;
     overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    border: 1px solid #5a5a5a;
   }
   th, td {
     padding: 10px 12px;
     text-align: left;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid #5a5a5a;
     font-size: 14px;
   }
   th {
-    background: #1f2937;
-    color: white;
+    background: #2b2b2b;
+    color: #f5c518;
+    font-weight: 600;
   }
-  tr:hover { background: #f9fafb; }
-  .low-stock { color: #dc2626; font-weight: bold; }
+  tr:hover { background: #565656; }
+  .low-stock { color: #ff9d9d; font-weight: bold; }
 
   .actions { display: flex; gap: 6px; }
   .actions button { padding: 5px 8px; font-size: 12px; }
@@ -69,24 +76,26 @@
     display: none;
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.4);
+    background: rgba(0,0,0,0.55);
     align-items: center;
     justify-content: center;
   }
   .modal-overlay.show { display: flex; }
   .modal {
-    background: white;
+    background: #4a4a4a;
+    border: 1px solid #5a5a5a;
     padding: 20px;
     border-radius: 8px;
     width: 320px;
     max-width: 90vw;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
   }
-  .modal h3 { margin-top: 0; }
-  .modal label { display: block; margin: 10px 0 4px; font-size: 13px; color: #374151; }
+  .modal h3 { margin-top: 0; color: #f5c518; }
+  .modal label { display: block; margin: 10px 0 4px; font-size: 13px; color: #cfcfcf; }
   .modal input { width: 100%; }
   .modal-footer { margin-top: 16px; display: flex; gap: 8px; justify-content: flex-end; }
 
-  #loading { text-align: center; padding: 20px; color: #6b7280; }
+  #loading { text-align: center; padding: 20px; color: #b0b0b0; }
   #statusMsg { margin-bottom: 10px; font-size: 14px; }
 </style>
 </head>
@@ -157,7 +166,7 @@
 
 <script>
   // ⚠️ แก้ URL นี้เป็น Web App URL ที่ได้จากการ Deploy Apps Script
-  const API_URL = 'https://script.google.com/macros/s/AKfycbyKGwnYoAWuBXVefFlCCMJc703VM5I5nfnpjiXHFp-6tDPYc-fZxT66xP6ODRjPMmTO3A/exec';
+  const API_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
 
   const LOW_STOCK_THRESHOLD = 5;
   let currentAdjustSku = null;
