@@ -123,6 +123,7 @@
     <button onclick="loadProducts()">ค้นหา</button>
     <button class="secondary" onclick="loadProducts(true)">รีเฟรชทั้งหมด</button>
     <button onclick="openAddModal()">+ เพิ่มสินค้า</button>
+    <button class="secondary" onclick="openSummaryModal()">📊 สรุปยอดตามหมวดหมู่</button>
   </div>
 
   <div id="statusMsg"></div>
@@ -195,6 +196,26 @@
     <div class="modal-footer">
       <button class="secondary" onclick="closeModal('editModal')">ยกเลิก</button>
       <button onclick="submitEdit()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: สรุปยอดตามหมวดหมู่ -->
+<div class="modal-overlay" id="summaryModal">
+  <div class="modal" style="width: 420px;">
+    <h3>📊 สรุปยอดสินค้าตามหมวดหมู่</h3>
+    <table id="summaryTable" style="margin-top: 10px;">
+      <thead>
+        <tr>
+          <th>หมวดหมู่</th>
+          <th>จำนวนรายการ</th>
+          <th>ยอดรวมคงเหลือ</th>
+        </tr>
+      </thead>
+      <tbody id="summaryBody"></tbody>
+    </table>
+    <div class="modal-footer">
+      <button class="secondary" onclick="closeModal('summaryModal')">ปิด</button>
     </div>
   </div>
 </div>
@@ -310,6 +331,52 @@
         tbody.appendChild(tr);
       });
     });
+  }
+
+  // ===== สรุปยอดตามหมวดหมู่ =====
+  function openSummaryModal() {
+    const summary = {};
+    allItems.forEach(item => {
+      const cat = item['หมวดหมู่'] || 'ไม่ระบุหมวดหมู่';
+      const qty = Number(item['จำนวนคงเหลือ']) || 0;
+      if (!summary[cat]) summary[cat] = { count: 0, total: 0 };
+      summary[cat].count += 1;
+      summary[cat].total += qty;
+    });
+
+    const tbody = document.getElementById('summaryBody');
+    tbody.innerHTML = '';
+
+    const sortedCats = Object.keys(summary).sort();
+
+    if (sortedCats.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#9ca3af;">ไม่มีข้อมูล</td></tr>';
+    } else {
+      let grandTotalItems = 0;
+      let grandTotalQty = 0;
+      sortedCats.forEach(cat => {
+        const { count, total } = summary[cat];
+        grandTotalItems += count;
+        grandTotalQty += total;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${escapeHtml(cat)}</td>
+          <td>${count}</td>
+          <td>${total}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      const totalRow = document.createElement('tr');
+      totalRow.innerHTML = `
+        <td style="color:#f5c518;font-weight:600;">รวมทั้งหมด</td>
+        <td style="color:#f5c518;font-weight:600;">${grandTotalItems}</td>
+        <td style="color:#f5c518;font-weight:600;">${grandTotalQty}</td>
+      `;
+      tbody.appendChild(totalRow);
+    }
+
+    document.getElementById('summaryModal').classList.add('show');
   }
 
   function escapeHtml(str) {
