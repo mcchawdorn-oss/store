@@ -116,7 +116,7 @@
   <h1>📦 ระบบเช็คคลังสินค้า</h1>
 
   <div class="toolbar">
-    <input type="text" id="searchBox" placeholder="ค้นหา SKU, ชื่อสินค้า, หมวดหมู่...">
+    <input type="text" id="searchBox" placeholder="ค้นหาไอดี, ชื่อสินค้า, หมวดหมู่...">
     <select id="categoryFilter" onchange="loadProducts()">
       <option value="">ทุกหมวดหมู่</option>
     </select>
@@ -130,7 +130,7 @@
   <table id="productTable" style="display:none;">
     <thead>
       <tr>
-        <th>SKU</th>
+        <th>ไอดี</th>
         <th>ชื่อสินค้า</th>
         <th>หมวดหมู่</th>
         <th>คงเหลือ</th>
@@ -147,7 +147,7 @@
 <div class="modal-overlay" id="addModal">
   <div class="modal">
     <h3>เพิ่มสินค้าใหม่</h3>
-    <label>SKU</label>
+    <label>ไอดี</label>
     <input type="text" id="newSku">
     <label>ชื่อสินค้า</label>
     <input type="text" id="newName">
@@ -272,15 +272,15 @@
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td>${escapeHtml(item['SKU'])}</td>
+          <td>${escapeHtml(item['ไอดี'])}</td>
           <td>${escapeHtml(item['ชื่อสินค้า'])}</td>
           <td>${escapeHtml(item['หมวดหมู่'])}</td>
           <td class="${isLow ? 'low-stock' : ''}">${qty} ${isLow ? '⚠️' : ''}</td>
           <td>${escapeHtml(item['ตำแหน่งคลัง'])}</td>
           <td>${updated}</td>
           <td class="actions">
-            <button onclick="openAdjustModal('${escapeHtml(item['SKU'])}')">ปรับยอด</button>
-            <button class="danger" onclick="deleteProduct('${escapeHtml(item['SKU'])}')">ลบ</button>
+            <button onclick="openAdjustModal('${escapeHtml(item['ไอดี'])}')">ปรับยอด</button>
+            <button class="danger" onclick="deleteProduct('${escapeHtml(item['ไอดี'])}')">ลบ</button>
           </td>
         `;
         tbody.appendChild(tr);
@@ -314,7 +314,7 @@
   async function submitAdd() {
     const sku = document.getElementById('newSku').value.trim();
     const name = document.getElementById('newName').value.trim();
-    if (!sku || !name) { alert('กรุณากรอก SKU และชื่อสินค้า'); return; }
+    if (!sku || !name) { alert('กรุณากรอกไอดีและชื่อสินค้า'); return; }
 
     const payload = {
       action: 'add',
@@ -343,7 +343,7 @@
   // ===== ปรับยอดสต็อก =====
   function openAdjustModal(sku) {
     currentAdjustSku = sku;
-    document.getElementById('adjustSkuLabel').textContent = 'SKU: ' + sku;
+    document.getElementById('adjustSkuLabel').textContent = 'ไอดี: ' + sku;
     document.getElementById('adjustChange').value = 0;
     document.getElementById('adjustModal').classList.add('show');
   }
@@ -369,7 +369,7 @@
 
   // ===== ลบสินค้า =====
   async function deleteProduct(sku) {
-    if (!confirm(`ต้องการลบสินค้า SKU: ${sku} ใช่หรือไม่?`)) return;
+    if (!confirm(`ต้องการลบสินค้าไอดี: ${sku} ใช่หรือไม่?`)) return;
     try {
       const res = await fetch(API_URL, {
         method: 'POST',
