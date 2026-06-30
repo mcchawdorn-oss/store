@@ -178,6 +178,27 @@
   </div>
 </div>
 
+<!-- Modal: แก้ไขสินค้า -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <h3>แก้ไขข้อมูลสินค้า</h3>
+    <label>ไอดี</label>
+    <input type="text" id="editSku">
+    <label>ชื่อสินค้า</label>
+    <input type="text" id="editName">
+    <label>หมวดหมู่</label>
+    <input type="text" id="editCategory">
+    <label>จำนวนคงเหลือ</label>
+    <input type="number" id="editQuantity">
+    <label>ตำแหน่งคลัง</label>
+    <input type="text" id="editLocation">
+    <div class="modal-footer">
+      <button class="secondary" onclick="closeModal('editModal')">ยกเลิก</button>
+      <button onclick="submitEdit()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
 <script>
   // ⚠️ แก้ URL นี้เป็น Web App URL ที่ได้จากการ Deploy Apps Script
   const API_URL = 'https://script.google.com/macros/s/AKfycbyKGwnYoAWuBXVefFlCCMJc703VM5I5nfnpjiXHFp-6tDPYc-fZxT66xP6ODRjPMmTO3A/exec';
@@ -185,6 +206,7 @@
   const LOW_STOCK_THRESHOLD = 5;
   let currentAdjustSku = null;
   let allCategories = new Set();
+  let allItems = [];
 
   async function loadProducts(forceAll = false) {
     const loading = document.getElementById('loading');
@@ -206,6 +228,7 @@
       if (json.status !== 'ok') throw new Error(json.message || 'โหลดข้อมูลล้มเหลว');
 
       let data = json.data;
+      allItems = json.data;
       updateCategoryOptions(data);
 
       if (category) {
@@ -279,6 +302,7 @@
           <td>${escapeHtml(item['ตำแหน่งคลัง'])}</td>
           <td>${updated}</td>
           <td class="actions">
+            <button onclick="openEditModal('${escapeHtml(item['ไอดี'])}')">แก้ไข</button>
             <button onclick="openAdjustModal('${escapeHtml(item['ไอดี'])}')">ปรับยอด</button>
             <button class="danger" onclick="deleteProduct('${escapeHtml(item['ไอดี'])}')">ลบ</button>
           </td>
@@ -334,6 +358,52 @@
       if (json.status !== 'ok') throw new Error(json.message);
       closeModal('addModal');
       setStatus('เพิ่มสินค้าสำเร็จ');
+      loadProducts(true);
+    } catch (err) {
+      alert('เกิดข้อผิดพลาด: ' + err.message);
+    }
+  }
+
+  // ===== แก้ไขสินค้า =====
+  let currentEditOriginalSku = null;
+
+  function openEditModal(sku) {
+    const item = allItems.find(i => String(i['ไอดี']) === String(sku));
+    if (!item) { alert('ไม่พบข้อมูลสินค้านี้ ลองรีเฟรชแล้วลองใหม่'); return; }
+
+    currentEditOriginalSku = item['ไอดี'];
+    document.getElementById('editSku').value = item['ไอดี'];
+    document.getElementById('editName').value = item['ชื่อสินค้า'];
+    document.getElementById('editCategory').value = item['หมวดหมู่'];
+    document.getElementById('editQuantity').value = item['จำนวนคงเหลือ'];
+    document.getElementById('editLocation').value = item['ตำแหน่งคลัง'];
+    document.getElementById('editModal').classList.add('show');
+  }
+
+  async function submitEdit() {
+    const sku = document.getElementById('editSku').value.trim();
+    const name = document.getElementById('editName').value.trim();
+    if (!sku || !name) { alert('กรุณากรอกไอดีและชื่อสินค้า'); return; }
+
+    const payload = {
+      action: 'edit',
+      originalSku: currentEditOriginalSku,
+      sku,
+      name,
+      category: document.getElementById('editCategory').value.trim(),
+      quantity: Number(document.getElementById('editQuantity').value) || 0,
+      location: document.getElementById('editLocation').value.trim()
+    };
+
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+      if (json.status !== 'ok') throw new Error(json.message);
+      closeModal('editModal');
+      setStatus('แก้ไขข้อมูลสำเร็จ');
       loadProducts(true);
     } catch (err) {
       alert('เกิดข้อผิดพลาด: ' + err.message);
