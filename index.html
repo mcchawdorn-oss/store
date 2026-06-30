@@ -97,6 +97,17 @@
 
   #loading { text-align: center; padding: 20px; color: #b0b0b0; }
   #statusMsg { margin-bottom: 10px; font-size: 14px; }
+
+  .category-header td {
+    background: #2b2b2b;
+    color: #f5c518;
+    font-weight: 600;
+    padding: 8px 12px;
+    border-bottom: 1px solid #6b6b6b;
+    font-size: 13px;
+    letter-spacing: 0.3px;
+  }
+  #categoryFilter { min-width: 160px; }
 </style>
 </head>
 <body>
@@ -106,6 +117,9 @@
 
   <div class="toolbar">
     <input type="text" id="searchBox" placeholder="ค้นหา SKU, ชื่อสินค้า, หมวดหมู่...">
+    <select id="categoryFilter" onchange="loadProducts()">
+      <option value="">ทุกหมวดหมู่</option>
+    </select>
     <button onclick="loadProducts()">ค้นหา</button>
     <button class="secondary" onclick="loadProducts(true)">รีเฟรชทั้งหมด</button>
     <button onclick="openAddModal()">+ เพิ่มสินค้า</button>
@@ -170,11 +184,13 @@
 
   const LOW_STOCK_THRESHOLD = 5;
   let currentAdjustSku = null;
+  let allCategories = new Set();
 
   async function loadProducts(forceAll = false) {
     const loading = document.getElementById('loading');
     const table = document.getElementById('productTable');
     const keyword = forceAll ? '' : document.getElementById('searchBox').value.trim();
+    const category = document.getElementById('categoryFilter').value;
 
     loading.style.display = 'block';
     table.style.display = 'none';
@@ -189,13 +205,39 @@
 
       if (json.status !== 'ok') throw new Error(json.message || 'โหลดข้อมูลล้มเหลว');
 
-      renderTable(json.data);
+      let data = json.data;
+      updateCategoryOptions(data);
+
+      if (category) {
+        data = data.filter(item => item['หมวดหมู่'] === category);
+      }
+
+      renderTable(data);
     } catch (err) {
       setStatus('เกิดข้อผิดพลาด: ' + err.message, true);
     } finally {
       loading.style.display = 'none';
       table.style.display = 'table';
     }
+  }
+
+  function updateCategoryOptions(data) {
+    const select = document.getElementById('categoryFilter');
+    const currentValue = select.value;
+
+    data.forEach(item => {
+      const cat = item['หมวดหมู่'];
+      if (cat) allCategories.add(cat);
+    });
+
+    select.innerHTML = '<option value="">ทุกหมวดหมู่</option>';
+    Array.from(allCategories).sort().forEach(cat => {
+      const opt = document.createElement('option');
+      opt.value = cat;
+      opt.textContent = cat;
+      select.appendChild(opt);
+    });
+    select.value = currentValue;
   }
 
   function renderTable(items) {
@@ -207,25 +249,42 @@
       return;
     }
 
+    // จัดกลุ่มตามหมวดหมู่
+    const groups = {};
     items.forEach(item => {
-      const qty = Number(item['จำนวนคงเหลือ']);
-      const isLow = qty <= LOW_STOCK_THRESHOLD;
-      const updated = item['อัปเดตล่าสุด'] ? new Date(item['อัปเดตล่าสุด']).toLocaleString('th-TH') : '-';
+      const cat = item['หมวดหมู่'] || 'ไม่ระบุหมวดหมู่';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(item);
+    });
 
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${escapeHtml(item['SKU'])}</td>
-        <td>${escapeHtml(item['ชื่อสินค้า'])}</td>
-        <td>${escapeHtml(item['หมวดหมู่'])}</td>
-        <td class="${isLow ? 'low-stock' : ''}">${qty} ${isLow ? '⚠️' : ''}</td>
-        <td>${escapeHtml(item['ตำแหน่งคลัง'])}</td>
-        <td>${updated}</td>
-        <td class="actions">
-          <button onclick="openAdjustModal('${escapeHtml(item['SKU'])}')">ปรับยอด</button>
-          <button class="danger" onclick="deleteProduct('${escapeHtml(item['SKU'])}')">ลบ</button>
-        </td>
-      `;
-      tbody.appendChild(tr);
+    const sortedCats = Object.keys(groups).sort();
+
+    sortedCats.forEach(cat => {
+      const headerRow = document.createElement('tr');
+      headerRow.className = 'category-header';
+      headerRow.innerHTML = `<td colspan="7">📁 ${escapeHtml(cat)} (${groups[cat].length} รายการ)</td>`;
+      tbody.appendChild(headerRow);
+
+      groups[cat].forEach(item => {
+        const qty = Number(item['จำนวนคงเหลือ']);
+        const isLow = qty <= LOW_STOCK_THRESHOLD;
+        const updated = item['อัปเดตล่าสุด'] ? new Date(item['อัปเดตล่าสุด']).toLocaleString('th-TH') : '-';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${escapeHtml(item['SKU'])}</td>
+          <td>${escapeHtml(item['ชื่อสินค้า'])}</td>
+          <td>${escapeHtml(item['หมวดหมู่'])}</td>
+          <td class="${isLow ? 'low-stock' : ''}">${qty} ${isLow ? '⚠️' : ''}</td>
+          <td>${escapeHtml(item['ตำแหน่งคลัง'])}</td>
+          <td>${updated}</td>
+          <td class="actions">
+            <button onclick="openAdjustModal('${escapeHtml(item['SKU'])}')">ปรับยอด</button>
+            <button class="danger" onclick="deleteProduct('${escapeHtml(item['SKU'])}')">ลบ</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
     });
   }
 
