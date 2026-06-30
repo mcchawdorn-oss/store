@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบเช็คคลังสินค้า</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Sarabun', 'Segoe UI', sans-serif;
+    background: #f4f6f8;
+    margin: 0;
+    padding: 20px;
+    color: #1f2937;
+  }
+  .container { max-width: 1000px; margin: 0 auto; }
+  h1 { font-size: 22px; margin-bottom: 16px; }
+
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  input, select, button {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid #d1d5db;
+    font-size: 14px;
+  }
+  #searchBox { flex: 1; min-width: 200px; }
+  button {
+    background: #2563eb;
+    color: white;
+    border: none;
+    cursor: pointer;
+  }
+  button:hover { background: #1d4ed8; }
+  button.secondary { background: #6b7280; }
+  button.secondary:hover { background: #4b5563; }
+  button.danger { background: #dc2626; }
+  button.danger:hover { background: #b91c1c; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+  th, td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 14px;
+  }
+  th {
+    background: #1f2937;
+    color: white;
+  }
+  tr:hover { background: #f9fafb; }
+  .low-stock { color: #dc2626; font-weight: bold; }
+
+  .actions { display: flex; gap: 6px; }
+  .actions button { padding: 5px 8px; font-size: 12px; }
+
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4);
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 320px;
+    max-width: 90vw;
+  }
+  .modal h3 { margin-top: 0; }
+  .modal label { display: block; margin: 10px 0 4px; font-size: 13px; color: #374151; }
+  .modal input { width: 100%; }
+  .modal-footer { margin-top: 16px; display: flex; gap: 8px; justify-content: flex-end; }
+
+  #loading { text-align: center; padding: 20px; color: #6b7280; }
+  #statusMsg { margin-bottom: 10px; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>📦 ระบบเช็คคลังสินค้า</h1>
+
+  <div class="toolbar">
+    <input type="text" id="searchBox" placeholder="ค้นหา SKU, ชื่อสินค้า, หมวดหมู่...">
+    <button onclick="loadProducts()">ค้นหา</button>
+    <button class="secondary" onclick="loadProducts(true)">รีเฟรชทั้งหมด</button>
+    <button onclick="openAddModal()">+ เพิ่มสินค้า</button>
+  </div>
+
+  <div id="statusMsg"></div>
+  <div id="loading">กำลังโหลดข้อมูล...</div>
+  <table id="productTable" style="display:none;">
+    <thead>
+      <tr>
+        <th>SKU</th>
+        <th>ชื่อสินค้า</th>
+        <th>หมวดหมู่</th>
+        <th>คงเหลือ</th>
+        <th>ตำแหน่ง</th>
+        <th>อัปเดตล่าสุด</th>
+        <th>จัดการ</th>
+      </tr>
+    </thead>
+    <tbody id="productBody"></tbody>
+  </table>
+</div>
+
+<!-- Modal: เพิ่มสินค้า -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <h3>เพิ่มสินค้าใหม่</h3>
+    <label>SKU</label>
+    <input type="text" id="newSku">
+    <label>ชื่อสินค้า</label>
+    <input type="text" id="newName">
+    <label>หมวดหมู่</label>
+    <input type="text" id="newCategory">
+    <label>จำนวนเริ่มต้น</label>
+    <input type="number" id="newQuantity" value="0">
+    <label>ตำแหน่งคลัง</label>
+    <input type="text" id="newLocation">
+    <div class="modal-footer">
+      <button class="secondary" onclick="closeModal('addModal')">ยกเลิก</button>
+      <button onclick="submitAdd()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: ปรับยอด -->
+<div class="modal-overlay" id="adjustModal">
+  <div class="modal">
+    <h3>ปรับยอดสต็อก</h3>
+    <p id="adjustSkuLabel" style="font-size:13px;color:#6b7280;"></p>
+    <label>จำนวนที่เปลี่ยนแปลง (ใส่ค่าลบเพื่อลด เช่น -5)</label>
+    <input type="number" id="adjustChange" value="0">
+    <div class="modal-footer">
+      <button class="secondary" onclick="closeModal('adjustModal')">ยกเลิก</button>
+      <button onclick="submitAdjust()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ⚠️ แก้ URL นี้เป็น Web App URL ที่ได้จากการ Deploy Apps Script
+  const API_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
+
+  const LOW_STOCK_THRESHOLD = 5;
+  let currentAdjustSku = null;
+
+  async function loadProducts(forceAll = false) {
+    const loading = document.getElementById('loading');
+    const table = document.getElementById('productTable');
+    const keyword = forceAll ? '' : document.getElementById('searchBox').value.trim();
+
+    loading.style.display = 'block';
+    table.style.display = 'none';
+    setStatus('');
+
+    try {
+      const url = keyword
+        ? `${API_URL}?search=${encodeURIComponent(keyword)}`
+        : API_URL;
+      const res = await fetch(url);
+      const json = await res.json();
+
+      if (json.status !== 'ok') throw new Error(json.message || 'โหลดข้อมูลล้มเหลว');
+
+      renderTable(json.data);
+    } catch (err) {
+      setStatus('เกิดข้อผิดพลาด: ' + err.message, true);
+    } finally {
+      loading.style.display = 'none';
+      table.style.display = 'table';
+    }
+  }
+
+  function renderTable(items) {
+    const tbody = document.getElementById('productBody');
+    tbody.innerHTML = '';
+
+    if (items.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#9ca3af;">ไม่พบข้อมูล</td></tr>';
+      return;
+    }
+
+    items.forEach(item => {
+      const qty = Number(item['จำนวนคงเหลือ']);
+      const isLow = qty <= LOW_STOCK_THRESHOLD;
+      const updated = item['อัปเดตล่าสุด'] ? new Date(item['อัปเดตล่าสุด']).toLocaleString('th-TH') : '-';
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escapeHtml(item['SKU'])}</td>
+        <td>${escapeHtml(item['ชื่อสินค้า'])}</td>
+        <td>${escapeHtml(item['หมวดหมู่'])}</td>
+        <td class="${isLow ? 'low-stock' : ''}">${qty} ${isLow ? '⚠️' : ''}</td>
+        <td>${escapeHtml(item['ตำแหน่งคลัง'])}</td>
+        <td>${updated}</td>
+        <td class="actions">
+          <button onclick="openAdjustModal('${escapeHtml(item['SKU'])}')">ปรับยอด</button>
+          <button class="danger" onclick="deleteProduct('${escapeHtml(item['SKU'])}')">ลบ</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function escapeHtml(str) {
+    if (str === undefined || str === null) return '';
+    return String(str).replace(/[&<>"']/g, m => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[m]));
+  }
+
+  function setStatus(msg, isError = false) {
+    const el = document.getElementById('statusMsg');
+    el.textContent = msg;
+    el.style.color = isError ? '#dc2626' : '#16a34a';
+  }
+
+  // ===== เพิ่มสินค้า =====
+  function openAddModal() {
+    document.getElementById('newSku').value = '';
+    document.getElementById('newName').value = '';
+    document.getElementById('newCategory').value = '';
+    document.getElementById('newQuantity').value = 0;
+    document.getElementById('newLocation').value = '';
+    document.getElementById('addModal').classList.add('show');
+  }
+
+  async function submitAdd() {
+    const sku = document.getElementById('newSku').value.trim();
+    const name = document.getElementById('newName').value.trim();
+    if (!sku || !name) { alert('กรุณากรอก SKU และชื่อสินค้า'); return; }
+
+    const payload = {
+      action: 'add',
+      sku,
+      name,
+      category: document.getElementById('newCategory').value.trim(),
+      quantity: Number(document.getElementById('newQuantity').value) || 0,
+      location: document.getElementById('newLocation').value.trim()
+    };
+
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+      if (json.status !== 'ok') throw new Error(json.message);
+      closeModal('addModal');
+      setStatus('เพิ่มสินค้าสำเร็จ');
+      loadProducts(true);
+    } catch (err) {
+      alert('เกิดข้อผิดพลาด: ' + err.message);
+    }
+  }
+
+  // ===== ปรับยอดสต็อก =====
+  function openAdjustModal(sku) {
+    currentAdjustSku = sku;
+    document.getElementById('adjustSkuLabel').textContent = 'SKU: ' + sku;
+    document.getElementById('adjustChange').value = 0;
+    document.getElementById('adjustModal').classList.add('show');
+  }
+
+  async function submitAdjust() {
+    const change = Number(document.getElementById('adjustChange').value);
+    if (!change) { alert('กรุณาใส่จำนวนที่ไม่เป็น 0'); return; }
+
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'adjust', sku: currentAdjustSku, change })
+      });
+      const json = await res.json();
+      if (json.status !== 'ok') throw new Error(json.message);
+      closeModal('adjustModal');
+      setStatus('ปรับยอดสำเร็จ');
+      loadProducts(true);
+    } catch (err) {
+      alert('เกิดข้อผิดพลาด: ' + err.message);
+    }
+  }
+
+  // ===== ลบสินค้า =====
+  async function deleteProduct(sku) {
+    if (!confirm(`ต้องการลบสินค้า SKU: ${sku} ใช่หรือไม่?`)) return;
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'delete', sku })
+      });
+      const json = await res.json();
+      if (json.status !== 'ok') throw new Error(json.message);
+      setStatus('ลบสินค้าสำเร็จ');
+      loadProducts(true);
+    } catch (err) {
+      alert('เกิดข้อผิดพลาด: ' + err.message);
+    }
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('show');
+  }
+
+  document.getElementById('searchBox').addEventListener('keydown', e => {
+    if (e.key === 'Enter') loadProducts();
+  });
+
+  // โหลดข้อมูลครั้งแรก
+  loadProducts();
+</script>
+
+</body>
+</html>
